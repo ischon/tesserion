@@ -11,6 +11,8 @@ const route = useRoute()
 const router = useRouter()
 const roomId = route.params.id
 const room = ref(null)
+const isEditingName = ref(false)
+const editedName = ref('')
 
 const cards = computed(() => {
   const type = room.value?.sequenceType || 'fibonacci'
@@ -26,7 +28,7 @@ const cards = computed(() => {
     }
   }
   
-  return [...sequence.map(String), '?']
+  return ['☕', ...sequence.map(String), '?']
 })
 
 const myVote = computed(() => {
@@ -87,6 +89,24 @@ const nextRound = async () => {
   })
 }
 
+const startEditingName = () => {
+  editedName.value = room.value.name
+  isEditingName.value = true
+}
+
+const saveName = async () => {
+  if (!editedName.value.trim() || editedName.value === room.value.name) {
+    isEditingName.value = false
+    return
+  }
+  
+  const roomRef = dbRef(rtdb, `rooms/${roomId}`)
+  await update(roomRef, {
+    name: editedName.value.trim()
+  })
+  isEditingName.value = false
+}
+
 const inviteLink = computed(() => window.location.href)
 
 const copyLink = () => {
@@ -125,7 +145,21 @@ const allVoted = computed(() => {
     <header class="room-header">
       <div class="room-title">
         <button @click="router.push({ name: 'dashboard' })" class="btn-back">←</button>
-        <h1>{{ room.name }}</h1>
+        <div v-if="isEditingName" class="edit-name-flow">
+          <input 
+            v-model="editedName" 
+            @keyup.enter="saveName" 
+            @keyup.esc="isEditingName = false"
+            @blur="saveName"
+            ref="nameInput"
+            class="edit-input"
+            autofocus
+          />
+        </div>
+        <h1 v-else @click="startEditingName" class="clickable-title" title="Click to edit">
+          {{ room.name }}
+          <span class="edit-icon">✎</span>
+        </h1>
       </div>
       <div class="room-controls">
         <button @click="toggleReveal" class="btn-secondary">
@@ -215,6 +249,42 @@ const allVoted = computed(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.clickable-title {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  transition: var(--transition);
+}
+
+.clickable-title:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.edit-icon {
+  font-size: 1rem;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.clickable-title:hover .edit-icon {
+  opacity: 0.5;
+}
+
+.edit-input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--color-primary);
+  color: white;
+  font-size: 2rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 8px;
+  outline: none;
+  width: 100%;
 }
 
 .btn-back {

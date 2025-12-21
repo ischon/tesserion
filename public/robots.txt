@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /room/
+Disallow: /dashboard
+
+# Allow indexing of the landing page if applicable, but keep rooms private
+Allow: /

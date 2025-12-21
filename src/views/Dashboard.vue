@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/auth'
 import { useRouter } from 'vue-router'
 import { ref, onMounted, computed } from 'vue'
 import { rtdb } from '../firebase'
-import { ref as dbRef, query, orderByChild, equalTo, onValue, push, set, serverTimestamp } from 'firebase/database'
+import { ref as dbRef, query, orderByChild, equalTo, onValue, set, get, serverTimestamp, child } from 'firebase/database'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -58,16 +58,42 @@ onMounted(() => {
   }
 })
 
+const generateRoomId = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Removed ambiguous O, 0, I, 1
+  let result = ''
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
 const createRoom = async () => {
-  if (!newRoomName.value.trim() || isCreating.value) return
+  if (isCreating.value) return
   
   isCreating.value = true
   try {
+    const finalRoomName = newRoomName.value.trim() || `${authStore.user.displayName}'s Room`
     const roomsRef = dbRef(rtdb, 'rooms')
-    const newRoomRef = push(roomsRef)
+    let customId = generateRoomId()
+    let isUnique = false
+    let attempts = 0
+
+    while (!isUnique && attempts < 5) {
+      const snapshot = await get(child(roomsRef, customId))
+      if (!snapshot.exists()) {
+        isUnique = true
+      } else {
+        customId = generateRoomId()
+        attempts++
+      }
+    }
+
+    if (!isUnique) throw new Error("Could not generate unique ID")
+
+    const newRoomRef = child(roomsRef, customId)
     
     await set(newRoomRef, {
-      name: newRoomName.value,
+      name: finalRoomName,
       domain: authStore.userDomain,
       createdBy: authStore.user.uid,
       creatorName: authStore.user.displayName,
@@ -78,7 +104,7 @@ const createRoom = async () => {
       maxValue: maxValue.value
     })
     
-    router.push({ name: 'room', params: { id: newRoomRef.key } })
+    router.push({ name: 'room', params: { id: customId } })
   } catch (error) {
     console.error("Error creating room:", error)
   } finally {
@@ -155,7 +181,7 @@ const handleLogout = () => {
             </div>
           </div>
 
-          <button @click="createRoom" :disabled="isCreating || !newRoomName" class="btn-primary w-full mt-4">
+          <button @click="createRoom" :disabled="isCreating" class="btn-primary w-full mt-4">
             {{ isCreating ? 'Creating...' : 'Begin the Ritual' }}
           </button>
         </div>
