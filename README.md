@@ -2,7 +2,7 @@
 
 Tesserion is a premium, real-time Scrum Poker tool designed for agile teams. It offers a sleek, high-performance experience for estimating tasks with your team, featuring customizable card sequences and seamless authentication.
 
-![Tesserion Preview](https://tesserion.schon.dev/preview.png)
+Hosted at [tesserion.schon.dev](https://tesserion.schon.dev)
 
 ## 🚀 Features
 
