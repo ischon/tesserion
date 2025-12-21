@@ -2,9 +2,9 @@
 import { useAuthStore } from '../store/auth'
 import { useRoute, useRouter } from 'vue-router'
 import { ref, onMounted, computed, onUnmounted } from 'vue'
-import { doc, onSnapshot, updateDoc, deleteField } from 'firebase/firestore'
-import { db } from '../firebase'
-import { trackPresence } from '../services/presenceService'
+import { rtdb } from '../firebase'
+import { ref as dbRef, onValue, update } from 'firebase/database'
+import { trackPresence, leaveRoom } from '../services/presenceService'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -13,46 +13,59 @@ const roomId = route.params.id
 const room = ref(null)
 const cards = ['0', '1', '2', '3', '5', '8', '13', '21', '34', '?']
 
-const myVote = computed(() => room.value?.votes?.[authStore.user?.uid] || null)
+const myVote = computed(() => {
+  const v = room.value?.votes?.[authStore.user?.uid]
+  return typeof v === 'object' ? v?.value : v
+})
 
 onMounted(() => {
-  const roomRef = doc(db, 'rooms', roomId)
+  const roomRef = dbRef(rtdb, `rooms/${roomId}`)
   
-  const unsubscribe = onSnapshot(roomRef, (snapshot) => {
-    if (!snapshot.exists()) {
+  const unsubscribe = onValue(roomRef, (snapshot) => {
+    const data = snapshot.val()
+    if (!data) {
       router.push({ name: 'dashboard' })
       return
     }
-    room.value = { id: snapshot.id, ...snapshot.data() }
+    room.value = { id: snapshot.key, ...data }
   })
 
   // Track presence
   trackPresence(roomId, authStore.user?.uid, authStore.user?.displayName)
 
+  const handleExiting = () => {
+    leaveRoom(roomId, authStore.user?.uid)
+  }
+
+  // Handle tab/window close
+  window.addEventListener('beforeunload', handleExiting)
+
   onUnmounted(() => {
     unsubscribe()
+    window.removeEventListener('beforeunload', handleExiting)
+    handleExiting() // Explicitly leave when navigating away in SPA
   })
 })
 
+
 const castVote = async (value) => {
-  const roomRef = doc(db, 'rooms', roomId)
-  const votePath = `votes.${authStore.user.uid}`
-  
-  await updateDoc(roomRef, {
-    [votePath]: value
+  const voteRef = dbRef(rtdb, `rooms/${roomId}/votes/${authStore.user.uid}`)
+  await update(voteRef, {
+    value,
+    name: authStore.user.displayName
   })
 }
 
 const toggleReveal = async () => {
-  const roomRef = doc(db, 'rooms', roomId)
-  await updateDoc(roomRef, {
+  const roomRef = dbRef(rtdb, `rooms/${roomId}`)
+  await update(roomRef, {
     showVotes: !room.value.showVotes
   })
 }
 
 const nextRound = async () => {
-  const roomRef = doc(db, 'rooms', roomId)
-  await updateDoc(roomRef, {
+  const roomRef = dbRef(rtdb, `rooms/${roomId}`)
+  await update(roomRef, {
     showVotes: false,
     votes: {}
   })
@@ -72,7 +85,11 @@ const participantsCount = computed(() => {
 
 const stats = computed(() => {
   if (!room.value?.votes || Object.keys(room.value.votes).length === 0) return null
-  const values = Object.values(room.value.votes).filter(v => v !== '?').map(v => parseInt(v))
+  const values = Object.values(room.value.votes)
+    .map(v => typeof v === 'object' ? v.value : v)
+    .filter(v => v !== '?')
+    .map(v => parseInt(v))
+  
   if (values.length === 0) return null
   const sum = values.reduce((a, b) => a + b, 0)
   const avg = sum / values.length
@@ -83,8 +100,6 @@ const stats = computed(() => {
 })
 
 const allVoted = computed(() => {
-  // This is a naive check, ideally we'd compare against online users
-  // For now, let's just use it as a visual indicator
   return false 
 })
 </script>
@@ -108,12 +123,17 @@ const allVoted = computed(() => {
       <section class="table-area">
         <div class="poker-table glass">
           <div class="participants">
-            <div v-for="(vote, uid) in room.votes" :key="uid" class="participant">
-              <div class="card-mini" :class="{ 'voted': vote, 'revealed': room.showVotes }">
-                <span v-if="room.showVotes">{{ vote }}</span>
-                <span v-else-if="vote">✓</span>
+            <div v-for="(voteData, uid) in room.votes" :key="uid" class="participant">
+              <div class="card-mini" :class="{ 
+                'voted': typeof voteData === 'object' ? voteData.value : voteData, 
+                'revealed': room.showVotes 
+              }">
+                <span v-if="room.showVotes">{{ typeof voteData === 'object' ? voteData.value : voteData }}</span>
+                <span v-else-if="typeof voteData === 'object' ? voteData.value : voteData">✓</span>
               </div>
-              <p class="name">{{ uid === authStore.user.uid ? 'You' : 'Member' }}</p>
+              <p class="name">
+                {{ uid === authStore.user.uid ? 'You' : (voteData.name || 'Member') }}
+              </p>
             </div>
           </div>
           
@@ -236,13 +256,13 @@ const allVoted = computed(() => {
   gap: 8px;
 }
 
-/* Polar distribution for up to 8 people (simplified) */
-.participant:nth-child(1) { top: -20px; left: 50%; transform: translateX(-50%); }
-.participant:nth-child(2) { top: 20%; right: 5%; }
-.participant:nth-child(3) { bottom: 20%; right: 5%; }
-.participant:nth-child(4) { bottom: -20px; left: 50%; transform: translateX(-50%); }
-.participant:nth-child(5) { bottom: 20%; left: 5%; }
-.participant:nth-child(6) { top: 20%; left: 5%; }
+/* Polar distribution for up to 8 people (refined) */
+.participant:nth-child(1) { top: 0; left: 50%; transform: translate(-50%, -50%); }
+.participant:nth-child(2) { top: 25%; right: 0; transform: translate(50%, -50%); }
+.participant:nth-child(3) { top: 75%; right: 0; transform: translate(50%, -50%); }
+.participant:nth-child(4) { bottom: 0; left: 50%; transform: translate(-50%, 50%); }
+.participant:nth-child(5) { top: 75%; left: 0; transform: translate(-50%, -50%); }
+.participant:nth-child(6) { top: 25%; left: 0; transform: translate(-50%, -50%); }
 
 .card-mini {
   width: 48px;
@@ -266,7 +286,21 @@ const allVoted = computed(() => {
 .card-mini.revealed {
   background: white;
   color: var(--color-bg);
-  transform: rotateY(180deg) scale(1.1);
+  transform: scale(1.1); /* Removed rotateY which caused mirroring */
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.card-mini span {
+  transition: var(--transition);
+}
+
+.card-mini.revealed span {
+  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .name {

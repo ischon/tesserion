@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { auth } from './firebase'
+import { useAuthStore } from '../store/auth'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -7,31 +7,31 @@ const router = createRouter({
         {
             path: '/login',
             name: 'login',
-            component: () => import('./views/Login.vue'),
+            component: () => import('../views/Login.vue'),
             meta: { guestOnly: true }
         },
         {
             path: '/',
             name: 'dashboard',
-            component: () => import('./views/Dashboard.vue'),
+            component: () => import('../views/Dashboard.vue'),
             meta: { requiresAuth: true }
         },
         {
             path: '/room/:id',
             name: 'room',
-            component: () => import('./views/Room.vue'),
+            component: () => import('../views/Room.vue'),
             meta: { requiresAuth: true }
         }
     ]
 })
 
 router.beforeEach(async (to, from, next) => {
-    const user = await new Promise((resolve) => {
-        const unsubscribe = auth.onAuthStateChanged((user) => {
-            unsubscribe();
-            resolve(user);
-        });
-    });
+    const authStore = useAuthStore()
+    if (authStore.loading) {
+        await authStore.init()
+    }
+
+    const user = authStore.user
 
     if (to.meta.requiresAuth && !user) {
         next({ name: 'login' });

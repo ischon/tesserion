@@ -1,10 +1,8 @@
-import { rtdb, db } from '../firebase'
-import { ref as rRef, onValue, set, onDisconnect, remove } from 'firebase/database'
-import { doc, deleteDoc, getDoc } from 'firebase/firestore'
+import { rtdb } from '../firebase'
+import { ref as rRef, onValue, set, onDisconnect, remove, get } from 'firebase/database'
 
 export const trackPresence = (roomId, userId, userName) => {
-    const userStatusRef = rRef(rtdb, `rooms/${roomId}/users/${userId}`)
-    const roomStatusRef = rRef(rtdb, `rooms/${roomId}/users`)
+    const userStatusRef = rRef(rtdb, `rooms/${roomId}/online_users/${userId}`)
 
     const status = {
         name: userName,
@@ -15,31 +13,29 @@ export const trackPresence = (roomId, userId, userName) => {
     // Set user as online
     set(userStatusRef, status)
 
-    // On disconnect, remove the user from the room status
+    // On disconnect (crash/hard close), remove the user from online users
     onDisconnect(userStatusRef).remove()
-
-    // Listen to the room status to handle automatic cleanup
-    onValue(roomStatusRef, async (snapshot) => {
-        const users = snapshot.val()
-        if (!users) {
-            // No users left in RTDB, delete the room from Firestore
-            // Note: This needs to be carefully handled to avoid premature deletion 
-            // when a user refreshes. We'll add a small delay or check.
-            try {
-                const roomDoc = await getDoc(doc(db, 'rooms', roomId))
-                if (roomDoc.exists()) {
-                    // If no users are tracked in RTDB for more than 5 seconds, delete
-                    setTimeout(async () => {
-                        const currentSnapshot = await new Promise(resolve => onValue(roomStatusRef, resolve, { onlyOnce: true }))
-                        if (!currentSnapshot.val()) {
-                            await deleteDoc(doc(db, 'rooms', roomId))
-                            console.log(`Room ${roomId} deleted as it was empty.`)
-                        }
-                    }, 5000)
-                }
-            } catch (err) {
-                console.error("Cleanup error:", err)
-            }
-        }
-    })
 }
+
+export const leaveRoom = async (roomId, userId) => {
+    const userStatusRef = rRef(rtdb, `rooms/${roomId}/online_users/${userId}`)
+    const roomOnlineRef = rRef(rtdb, `rooms/${roomId}/online_users`)
+    const roomRef = rRef(rtdb, `rooms/${roomId}`)
+
+    try {
+        // 1. Remove myself
+        await remove(userStatusRef)
+
+        // 2. Check if others are left
+        const snapshot = await get(roomOnlineRef)
+        if (!snapshot.exists()) {
+            // Last one out, turn off the lights
+            await remove(roomRef)
+            console.log(`Room ${roomId} deleted as the last participant left.`)
+        }
+    } catch (err) {
+        console.error("Error during leaveRoom:", err)
+    }
+}
+
+

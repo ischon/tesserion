@@ -2,8 +2,8 @@
 import { useAuthStore } from '../store/auth'
 import { useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '../firebase'
+import { rtdb } from '../firebase'
+import { ref as dbRef, query, orderByChild, equalTo, onValue, push, set, serverTimestamp } from 'firebase/database'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -13,16 +13,19 @@ const isCreating = ref(false)
 
 onMounted(() => {
   if (authStore.userDomain) {
-    const q = query(
-      collection(db, 'rooms'), 
-      where('domain', '==', authStore.userDomain)
-    )
+    const roomsRef = dbRef(rtdb, 'rooms')
+    const q = query(roomsRef, orderByChild('domain'), equalTo(authStore.userDomain))
     
-    onSnapshot(q, (snapshot) => {
-      rooms.value = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+    onValue(q, (snapshot) => {
+      const data = snapshot.val()
+      if (data) {
+        rooms.value = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }))
+      } else {
+        rooms.value = []
+      }
     })
   }
 })
@@ -32,7 +35,10 @@ const createRoom = async () => {
   
   isCreating.value = true
   try {
-    const docRef = await addDoc(collection(db, 'rooms'), {
+    const roomsRef = dbRef(rtdb, 'rooms')
+    const newRoomRef = push(roomsRef)
+    
+    await set(newRoomRef, {
       name: newRoomName.value,
       domain: authStore.userDomain,
       createdBy: authStore.user.uid,
@@ -42,7 +48,7 @@ const createRoom = async () => {
       votes: {}
     })
     
-    router.push({ name: 'room', params: { id: docRef.id } })
+    router.push({ name: 'room', params: { id: newRoomRef.key } })
   } catch (error) {
     console.error("Error creating room:", error)
   } finally {
