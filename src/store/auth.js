@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { auth, googleProvider } from '../firebase'
-import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth'
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -14,7 +14,8 @@ export const useAuthStore = defineStore('auth', {
     actions: {
         async login() {
             try {
-                await signInWithRedirect(auth, googleProvider)
+                const result = await signInWithPopup(auth, googleProvider)
+                this.user = result.user
             } catch (error) {
                 console.error("Login failed", error)
             }
@@ -29,21 +30,10 @@ export const useAuthStore = defineStore('auth', {
         },
         init() {
             return new Promise((resolve) => {
-                onAuthStateChanged(auth, async (user) => {
-                    if (!user) {
-                        try {
-                            const result = await getRedirectResult(auth)
-                            if (result) {
-                                this.user = result.user
-                            }
-                        } catch (error) {
-                            console.error("Redirect login error", error)
-                        }
-                    } else {
-                        this.user = user
-                    }
+                onAuthStateChanged(auth, (user) => {
+                    this.user = user
                     this.loading = false
-                    resolve(this.user)
+                    resolve(user)
                 })
             })
         }
