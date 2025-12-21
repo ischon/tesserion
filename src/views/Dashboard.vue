@@ -21,9 +21,15 @@ if (fibIndex.value === -1) fibIndex.value = availableFibValues.length - 1
 const sequentialMax = ref(parseInt(import.meta.env.VITE_SEQ_DEFAULT) || 10)
 const globalSeqMax = parseInt(import.meta.env.VITE_SEQ_MAX) || 20
 
+const tshirtValues = (import.meta.env.VITE_TSHIRT_VALUES || 'XXS,XS,S,M,L,XL,XXL').split(',')
+const tshirtIndex = ref(0) // Not used for selection anymore since slider is gone
+
 const maxValue = computed(() => {
   if (sequenceType.value === 'fibonacci') {
     return availableFibValues[fibIndex.value]
+  }
+  if (sequenceType.value === 'tshirt') {
+    return tshirtValues[tshirtValues.length - 1] // Return the largest size as indicator
   }
   return sequentialMax.value
 })
@@ -33,6 +39,8 @@ const changeSequence = (type) => {
   if (type === 'fibonacci') {
     fibIndex.value = availableFibValues.indexOf(parseInt(import.meta.env.VITE_FIB_SEQ_DEFAULT) || 8)
     if (fibIndex.value === -1) fibIndex.value = availableFibValues.length - 1
+  } else if (type === 'tshirt') {
+    // No specific index needed for tshirt anymore
   } else {
     sequentialMax.value = parseInt(import.meta.env.VITE_SEQ_DEFAULT) || 10
   }
@@ -144,7 +152,7 @@ const handleLogout = () => {
             />
           </div>
           
-          <div class="config-row">
+          <div class="ritual-config">
             <div class="config-item">
               <label>Sequence Type</label>
               <div class="segmented-control">
@@ -156,10 +164,14 @@ const handleLogout = () => {
                   :class="{ active: sequenceType === 'sequential' }" 
                   @click="changeSequence('sequential')"
                 >Sequential</button>
+                <button 
+                  :class="{ active: sequenceType === 'tshirt' }" 
+                  @click="changeSequence('tshirt')"
+                >T-Shirt</button>
               </div>
             </div>
             
-            <div class="config-item">
+            <div v-if="sequenceType !== 'tshirt'" class="config-item">
               <label>Max Value: {{ maxValue }}</label>
               <input 
                 v-if="sequenceType === 'fibonacci'"
@@ -177,7 +189,6 @@ const handleLogout = () => {
                 :max="globalSeqMax" 
                 step="1"
               />
-
             </div>
           </div>
 
@@ -260,21 +271,14 @@ const handleLogout = () => {
 .ritual-config {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
   margin-top: 24px;
 }
 
-.config-row {
-  display: flex;
-  gap: 32px;
-  align-items: flex-end;
-}
-
 .config-item {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .config-item label {

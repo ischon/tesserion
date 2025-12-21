@@ -22,6 +22,9 @@ const cards = computed(() => {
   if (type === 'fibonacci') {
     sequence = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233]
     sequence = sequence.filter(n => n <= max)
+  } else if (type === 'tshirt') {
+    const tshirtValues = (import.meta.env.VITE_TSHIRT_VALUES || 'XXS,XS,S,M,L,XL,XXL').split(',')
+    sequence = tshirtValues
   } else {
     for (let i = 0; i <= max; i++) {
       sequence.push(i)
@@ -123,14 +126,26 @@ const stats = computed(() => {
   if (!room.value?.votes || Object.keys(room.value.votes).length === 0) return null
   const values = Object.values(room.value.votes)
     .map(v => typeof v === 'object' ? v.value : v)
-    .filter(v => v !== '?')
-    .map(v => parseInt(v))
+    .filter(v => v !== '?' && v !== '☕')
   
   if (values.length === 0) return null
-  const sum = values.reduce((a, b) => a + b, 0)
-  const avg = sum / values.length
+
+  // Check if we can calculate average (only if all values are numeric strings)
+  const numericValues = values
+    .filter(v => !isNaN(parseInt(v)) && String(parseInt(v)) === v)
+    .map(v => parseInt(v))
+
+  if (numericValues.length === values.length && values.length > 0) {
+    const sum = numericValues.reduce((a, b) => a + b, 0)
+    const avg = sum / numericValues.length
+    return {
+      avg: avg.toFixed(1),
+      count: values.length
+    }
+  }
+
   return {
-    avg: avg.toFixed(1),
+    avg: null,
     count: values.length
   }
 })
@@ -190,6 +205,16 @@ const allVoted = computed(() => {
           <div class="table-center">
             <div v-if="room.showVotes" class="consensus-reveal">
               <p>Consensus Revealed</p>
+              <div v-if="stats" class="stats-box">
+                <div v-if="stats.avg" class="stat-item">
+                  <label>Average</label>
+                  <span>{{ stats.avg }}</span>
+                </div>
+                <div class="stat-item">
+                  <label>Votes</label>
+                  <span>{{ stats.count }}</span>
+                </div>
+              </div>
             </div>
             <div v-else class="waiting-state">
               <p>Waiting for votes...</p>
@@ -400,9 +425,39 @@ const allVoted = computed(() => {
   font-size: 1.1rem;
 }
 
-.consensus-reveal h2 {
-  font-size: 3rem;
-  margin: 0;
+.consensus-reveal p {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.8rem;
+  margin-bottom: 12px;
+  animation: revealText 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.stats-box {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-item label {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.stat-item span {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
 }
 
 .voting-deck {
