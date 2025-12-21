@@ -1,7 +1,7 @@
 <script setup>
 import { useAuthStore } from '../store/auth'
 import { useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { rtdb } from '../firebase'
 import { ref as dbRef, query, orderByChild, equalTo, onValue, push, set, serverTimestamp } from 'firebase/database'
 
@@ -10,6 +10,34 @@ const router = useRouter()
 const rooms = ref([])
 const newRoomName = ref('')
 const isCreating = ref(false)
+const sequenceType = ref('fibonacci')
+const fibValues = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233]
+const fibMax = parseInt(import.meta.env.VITE_FIB_SEQ_MAX) || 8
+const availableFibValues = fibValues.filter(v => v <= fibMax)
+
+const fibIndex = ref(availableFibValues.indexOf(parseInt(import.meta.env.VITE_FIB_SEQ_DEFAULT) || 8))
+if (fibIndex.value === -1) fibIndex.value = availableFibValues.length - 1
+
+const sequentialMax = ref(parseInt(import.meta.env.VITE_SEQ_DEFAULT) || 10)
+const globalSeqMax = parseInt(import.meta.env.VITE_SEQ_MAX) || 20
+
+const maxValue = computed(() => {
+  if (sequenceType.value === 'fibonacci') {
+    return availableFibValues[fibIndex.value]
+  }
+  return sequentialMax.value
+})
+
+const changeSequence = (type) => {
+  sequenceType.value = type
+  if (type === 'fibonacci') {
+    fibIndex.value = availableFibValues.indexOf(parseInt(import.meta.env.VITE_FIB_SEQ_DEFAULT) || 8)
+    if (fibIndex.value === -1) fibIndex.value = availableFibValues.length - 1
+  } else {
+    sequentialMax.value = parseInt(import.meta.env.VITE_SEQ_DEFAULT) || 10
+  }
+}
+
 
 onMounted(() => {
   if (authStore.userDomain) {
@@ -45,7 +73,9 @@ const createRoom = async () => {
       creatorName: authStore.user.displayName,
       createdAt: serverTimestamp(),
       showVotes: false,
-      votes: {}
+      votes: {},
+      sequenceType: sequenceType.value,
+      maxValue: maxValue.value
     })
     
     router.push({ name: 'room', params: { id: newRoomRef.key } })
@@ -78,15 +108,55 @@ const handleLogout = () => {
     <main class="dashboard-content">
       <section class="create-room glass">
         <h2>Create a New Ritual</h2>
-        <div class="input-group">
-          <input 
-            v-model="newRoomName" 
-            type="text" 
-            placeholder="Room Name (e.g. Sprint 24 Planning)" 
-            @keyup.enter="createRoom"
-          />
-          <button @click="createRoom" :disabled="isCreating" class="btn-primary">
-            {{ isCreating ? 'Creating...' : 'Create Room' }}
+        <div class="ritual-config">
+          <div class="input-group">
+            <input 
+              v-model="newRoomName" 
+              type="text" 
+              placeholder="Room Name (e.g. Sprint 24 Planning)" 
+              @keyup.enter="createRoom"
+            />
+          </div>
+          
+          <div class="config-row">
+            <div class="config-item">
+              <label>Sequence Type</label>
+              <div class="segmented-control">
+                <button 
+                  :class="{ active: sequenceType === 'fibonacci' }" 
+                  @click="changeSequence('fibonacci')"
+                >Fibonacci</button>
+                <button 
+                  :class="{ active: sequenceType === 'sequential' }" 
+                  @click="changeSequence('sequential')"
+                >Sequential</button>
+              </div>
+            </div>
+            
+            <div class="config-item">
+              <label>Max Value: {{ maxValue }}</label>
+              <input 
+                v-if="sequenceType === 'fibonacci'"
+                v-model.number="fibIndex" 
+                type="range" 
+                min="0" 
+                :max="availableFibValues.length - 1" 
+                step="1"
+              />
+              <input 
+                v-else
+                v-model.number="sequentialMax" 
+                type="range" 
+                min="1" 
+                :max="globalSeqMax" 
+                step="1"
+              />
+
+            </div>
+          </div>
+
+          <button @click="createRoom" :disabled="isCreating || !newRoomName" class="btn-primary w-full mt-4">
+            {{ isCreating ? 'Creating...' : 'Begin the Ritual' }}
           </button>
         </div>
       </section>
@@ -161,14 +231,98 @@ const handleLogout = () => {
   margin-bottom: 60px;
 }
 
-.input-group {
+.ritual-config {
   display: flex;
-  gap: 16px;
-  margin-top: 20px;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
 }
+
+.config-row {
+  display: flex;
+  gap: 32px;
+  align-items: flex-end;
+}
+
+.config-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-item label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.segmented-control {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.segmented-control button {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.segmented-control button.active {
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.w-full { width: 100%; }
+.mt-4 { margin-top: 16px; }
 
 .input-group input {
   flex: 1;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  margin: 10px 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  border: none;
 }
 
 .grid {

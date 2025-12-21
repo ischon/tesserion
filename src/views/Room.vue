@@ -11,7 +11,23 @@ const route = useRoute()
 const router = useRouter()
 const roomId = route.params.id
 const room = ref(null)
-const cards = ['0', '1', '2', '3', '5', '8', '13', '21', '34', '?']
+
+const cards = computed(() => {
+  const type = room.value?.sequenceType || 'fibonacci'
+  const max = room.value?.maxValue || 21
+  
+  let sequence = []
+  if (type === 'fibonacci') {
+    sequence = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233]
+    sequence = sequence.filter(n => n <= max)
+  } else {
+    for (let i = 0; i <= max; i++) {
+      sequence.push(i)
+    }
+  }
+  
+  return [...sequence.map(String), '?']
+})
 
 const myVote = computed(() => {
   const v = room.value?.votes?.[authStore.user?.uid]
