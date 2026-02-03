@@ -17,6 +17,7 @@ const handleLogin = async () => {
   <div class="login-view container">
     <div class="login-card glass">
       <div class="logo-container">
+        <img src="/logo.png" alt="Tesserion Logo" class="login-logo" />
         <h1>Tesserion</h1>
         <p class="subtitle">Revealing the Hidden Value</p>
       </div>
@@ -53,6 +54,16 @@ const handleLogin = async () => {
   text-align: center;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   animation: fadeIn 0.8s ease-out;
+  position: relative;
+  /* margin-top: 40px; removed as it's no longer half-above */
+}
+
+.login-logo {
+  width: 120px;
+  height: auto;
+  margin: 0 auto 24px;
+  display: block;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.3));
 }
 
 @keyframes fadeIn {
@@ -65,6 +76,7 @@ const handleLogin = async () => {
   margin: 0;
   background: linear-gradient(135deg, #fff, var(--color-text-muted));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.05em;
 }
