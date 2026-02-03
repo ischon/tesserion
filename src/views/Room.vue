@@ -159,7 +159,12 @@ const allVoted = computed(() => {
   <div v-if="room" class="room-view container">
     <header class="room-header">
       <div class="room-title">
-        <button @click="router.push({ name: 'dashboard' })" class="btn-back">←</button>
+        <button @click="router.push({ name: 'dashboard' })" class="btn-back">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
         <div v-if="isEditingName" class="edit-name-flow">
           <input 
             v-model="editedName" 
@@ -258,7 +263,7 @@ const allVoted = computed(() => {
 <style scoped>
 .room-view {
   padding-top: 32px;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -323,7 +328,7 @@ const allVoted = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  padding: 0;
   transition: var(--transition);
 }
 

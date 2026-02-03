@@ -10,7 +10,7 @@ import { RouterView } from 'vue-router'
     <footer class="app-footer">
       <div class="footer-content">
         <div class="copyright">
-          © 2025 <span class="author">Ian Schön</span>
+          © 2025 - {{ new Date().getFullYear() }} <span class="author">Ian Schön</span>
         </div>
         <a href="https://github.com/ischon/tesserion" target="_blank" rel="noopener" class="github-link">
           <svg class="github-icon" viewBox="0 0 24 24" width="20" height="20">
