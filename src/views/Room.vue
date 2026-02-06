@@ -205,6 +205,36 @@ const allVotedIn = computed(() => {
 const allVoted = computed(() => {
   return false 
 })
+
+const hasPerfectConsensus = computed(() => {
+  if (!room.value?.showVotes || !room.value?.votes) return false
+  
+  const voteValues = Object.values(room.value.votes).map(v => 
+    typeof v === 'object' ? v.value : v
+  )
+  
+  if (voteValues.length === 0) return false
+  
+  // Exclude coffee (☕) and question mark (?) from consensus effect
+  const firstVote = voteValues[0]
+  if (firstVote === '☕' || firstVote === '?') return false
+  
+  // Check if all votes are the same (works for both numeric and text values like t-shirt sizes)
+  return voteValues.every(vote => vote === firstVote)
+})
+
+const consensusEffectActive = ref(false)
+
+watch(hasPerfectConsensus, (newValue) => {
+  if (newValue) {
+    consensusEffectActive.value = true
+    setTimeout(() => {
+      consensusEffectActive.value = false
+    }, 5000)
+  } else {
+    consensusEffectActive.value = false
+  }
+})
 </script>
 
 <template>
@@ -287,17 +317,22 @@ const allVoted = computed(() => {
           </div>
           
           <div class="table-center">
-            <div v-if="room.showVotes" class="consensus-reveal">
+            <div v-if="room.showVotes" class="consensus-reveal" :class="{ 'perfect-consensus': consensusEffectActive }">
               <p>Consensus Revealed</p>
               <div v-if="stats" class="stats-box">
                 <div v-if="stats.avg" class="stat-item">
-                  <label>Average</label>
-                  <span>{{ stats.avg }}</span>
+                  <span class="stat-label">Average</span>
+                  <span class="stat-value">{{ stats.avg }}</span>
                 </div>
                 <div class="stat-item">
-                  <label>Votes</label>
-                  <span>{{ stats.count }}</span>
+                  <span class="stat-label">Votes</span>
+                  <span class="stat-value">{{ stats.count }}</span>
                 </div>
+              </div>
+              
+              <!-- Floating particles (only when perfect consensus) -->
+              <div v-if="consensusEffectActive" class="particles">
+                <span class="particle" v-for="i in 8" :key="i"></span>
               </div>
             </div>
             <div v-else class="waiting-state">
@@ -520,6 +555,113 @@ const allVoted = computed(() => {
   font-style: italic;
   font-size: 1.1rem;
 }
+
+/* Perfect Consensus Effect */
+.consensus-reveal {
+  position: relative;
+  padding: 24px;
+  border-radius: 20px;
+}
+
+@keyframes radiant-pulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 15px rgba(168, 85, 247, 0.2),
+      0 0 30px rgba(168, 85, 247, 0.15),
+      0 0 45px rgba(168, 85, 247, 0.1);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 
+      0 0 25px rgba(168, 85, 247, 0.3),
+      0 0 45px rgba(168, 85, 247, 0.2),
+      0 0 65px rgba(168, 85, 247, 0.15);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-200px) translateX(var(--drift));
+    opacity: 0;
+  }
+}
+
+.perfect-consensus {
+  animation: radiant-pulse 2s ease-in-out infinite;
+}
+
+.perfect-consensus::before,
+.perfect-consensus::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 50%;
+  animation: ripple 2.5s ease-out infinite;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.8);
+  opacity: 0;
+}
+
+.perfect-consensus::after {
+  animation-delay: 1s;
+}
+
+.particles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 1) 0%, rgba(168, 85, 247, 0) 70%);
+  border-radius: 50%;
+  bottom: 50%;
+  left: 50%;
+  animation: float-up 3s ease-in infinite;
+  opacity: 0;
+}
+
+.particle:nth-child(1) { --drift: -30px; animation-delay: 0s; left: 40%; }
+.particle:nth-child(2) { --drift: 20px; animation-delay: 0.3s; left: 60%; }
+.particle:nth-child(3) { --drift: -15px; animation-delay: 0.6s; left: 45%; }
+.particle:nth-child(4) { --drift: 25px; animation-delay: 0.9s; left: 55%; }
+.particle:nth-child(5) { --drift: -20px; animation-delay: 1.2s; left: 50%; }
+.particle:nth-child(6) { --drift: 15px; animation-delay: 1.5s; left: 48%; }
+.particle:nth-child(7) { --drift: -25px; animation-delay: 1.8s; left: 52%; }
+.particle:nth-child(8) { --drift: 10px; animation-delay: 2.1s; left: 58%; }
 
 .consensus-reveal p {
   color: var(--color-primary);
