@@ -117,9 +117,29 @@ const copyLink = () => {
   alert('Invite link copied to clipboard!')
 }
 
+const allParticipants = computed(() => {
+  if (!room.value?.online_users) return {}
+  
+  const participants = {}
+  
+  // Loop through all online users
+  Object.entries(room.value.online_users).forEach(([uid, userData]) => {
+    const voteData = room.value.votes?.[uid]
+    
+    participants[uid] = {
+      uid,
+      name: userData.name,
+      hasVoted: !!voteData,
+      vote: voteData ? (typeof voteData === 'object' ? voteData.value : voteData) : null
+    }
+  })
+  
+  return participants
+})
+
 const participantsCount = computed(() => {
-  if (!room.value?.votes) return 0
-  return Object.keys(room.value.votes).length
+  if (!room.value?.online_users) return 0
+  return Object.keys(room.value.online_users).length
 })
 
 const stats = computed(() => {
@@ -193,16 +213,27 @@ const allVoted = computed(() => {
       <section class="table-area">
         <div class="poker-table glass">
           <div class="participants">
-            <div v-for="(voteData, uid) in room.votes" :key="uid" class="participant">
+            <div v-for="(participant, uid) in allParticipants" :key="uid" class="participant">
               <div class="card-mini" :class="{ 
-                'voted': typeof voteData === 'object' ? voteData.value : voteData, 
-                'revealed': room.showVotes 
+                'waiting': !participant.hasVoted,
+                'voted': participant.hasVoted, 
+                'revealed': room.showVotes && participant.hasVoted
               }">
-                <span v-if="room.showVotes">{{ typeof voteData === 'object' ? voteData.value : voteData }}</span>
-                <span v-else-if="typeof voteData === 'object' ? voteData.value : voteData">✓</span>
+                <!-- Revealed state: show the vote -->
+                <span v-if="room.showVotes && participant.hasVoted">{{ participant.vote }}</span>
+                
+                <!-- Voted but not revealed: show checkmark -->
+                <span v-else-if="participant.hasVoted">✓</span>
+                
+                <!-- Waiting state: show stopwatch SVG -->
+                <svg v-else class="waiting-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="13" r="7"></circle>
+                  <polyline points="12 9 12 13 13.5 15"></polyline>
+                  <path d="M16.51 17.35l-.35 3.83a2 2 0 0 1-2 1.82H9.83a2 2 0 0 1-2-1.82l-.35-3.83m.01-10.7l.35-3.83A2 2 0 0 1 9.83 1h4.35a2 2 0 0 1 2 1.82l.35 3.83"></path>
+                </svg>
               </div>
               <p class="name">
-                {{ uid === authStore.user.uid ? 'You' : (voteData.name || 'Member') }}
+                {{ uid === authStore.user.uid ? 'You' : participant.name }}
               </p>
             </div>
           </div>
@@ -391,6 +422,18 @@ const allVoted = computed(() => {
   justify-content: center;
   font-weight: 700;
   transition: var(--transition);
+}
+
+.card-mini.waiting {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.waiting-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.4;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .card-mini.voted {
