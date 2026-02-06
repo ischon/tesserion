@@ -1,7 +1,7 @@
 <script setup>
 import { useAuthStore } from '../store/auth'
 import { useRoute, useRouter } from 'vue-router'
-import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
 import { rtdb } from '../firebase'
 import { ref as dbRef, onValue, update } from 'firebase/database'
 import { trackPresence, leaveRoom } from '../services/presenceService'
@@ -66,6 +66,17 @@ onMounted(() => {
     window.removeEventListener('beforeunload', handleExiting)
     handleExiting() // Explicitly leave when navigating away in SPA
   })
+  
+  // Watch for auto-reveal
+  watch(allVotedIn, async (newValue) => {
+    if (newValue && room.value?.autoReveal && !room.value?.showVotes) {
+      // Everyone has voted and auto-reveal is enabled
+      const roomRef = dbRef(rtdb, `rooms/${roomId}`)
+      await update(roomRef, {
+        showVotes: true
+      })
+    }
+  })
 })
 
 
@@ -108,6 +119,15 @@ const saveName = async () => {
     name: editedName.value.trim()
   })
   isEditingName.value = false
+}
+
+const disableAutoReveal = async () => {
+  if (!room.value?.autoReveal) return
+  
+  const roomRef = dbRef(rtdb, `rooms/${roomId}`)
+  await update(roomRef, {
+    autoReveal: false
+  })
 }
 
 const inviteLink = computed(() => window.location.href)
@@ -170,6 +190,18 @@ const stats = computed(() => {
   }
 })
 
+const allVotedIn = computed(() => {
+  if (!room.value?.online_users || !room.value?.votes) return false
+  
+  const onlineUserIds = Object.keys(room.value.online_users)
+  const votedUserIds = Object.keys(room.value.votes)
+  
+  // Check if everyone who is online has voted
+  if (onlineUserIds.length === 0) return false
+  
+  return onlineUserIds.every(uid => votedUserIds.includes(uid))
+})
+
 const allVoted = computed(() => {
   return false 
 })
@@ -202,9 +234,25 @@ const allVoted = computed(() => {
         </h1>
       </div>
       <div class="room-controls">
-        <button @click="toggleReveal" class="btn-secondary">
+        <!-- Show "Disable Auto-Reveal" button when auto-reveal is active -->
+        <button 
+          v-if="room.autoReveal" 
+          @click="disableAutoReveal" 
+          class="btn-warning"
+          title="Switch to manual reveal mode (cannot be undone)"
+        >
+          Disable Auto-Reveal
+        </button>
+        
+        <!-- Show normal reveal button only when auto-reveal is disabled -->
+        <button 
+          v-else
+          @click="toggleReveal" 
+          class="btn-secondary"
+        >
           {{ room.showVotes ? 'Hide Votes' : 'Show Votes' }}
         </button>
+        
         <button @click="nextRound" class="btn-primary">Next Round</button>
       </div>
     </header>
@@ -600,6 +648,22 @@ const allVoted = computed(() => {
 
 .btn-secondary:hover {
   background: rgba(168, 85, 247, 0.2);
+}
+
+.btn-warning {
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.3);
+  color: rgb(251, 146, 60);
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-warning:hover {
+  background: rgba(251, 146, 60, 0.2);
+  border-color: rgba(251, 146, 60, 0.5);
 }
 
 .loading-full {

@@ -23,6 +23,7 @@ const globalSeqMax = parseInt(import.meta.env.VITE_SEQ_MAX) || 20
 
 const tshirtValues = (import.meta.env.VITE_TSHIRT_VALUES || 'XXS,XS,S,M,L,XL,XXL').split(',')
 const tshirtIndex = ref(0) // Not used for selection anymore since slider is gone
+const autoReveal = ref(false)
 
 const maxValue = computed(() => {
   if (sequenceType.value === 'fibonacci') {
@@ -109,7 +110,8 @@ const createRoom = async () => {
       showVotes: false,
       votes: {},
       sequenceType: sequenceType.value,
-      maxValue: maxValue.value
+      maxValue: maxValue.value,
+      autoReveal: autoReveal.value
     })
     
     router.push({ name: 'room', params: { id: customId } })
@@ -189,6 +191,16 @@ const handleLogout = () => {
                 :max="globalSeqMax" 
                 step="1"
               />
+            </div>
+            
+            <div class="config-item">
+              <label class="toggle-label">
+                <input type="checkbox" v-model="autoReveal" class="toggle-input" />
+                <div class="toggle-content">
+                  <span class="toggle-text">Auto Reveal Votes</span>
+                  <span class="toggle-description">Automatically show votes when everyone has voted</span>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -324,6 +336,7 @@ const handleLogout = () => {
 }
 
 input[type="range"] {
+  appearance: none;
   -webkit-appearance: none;
   width: 100%;
   height: 8px;
@@ -353,6 +366,74 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
   border: none;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: var(--transition);
+}
+
+.toggle-label:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.toggle-input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 48px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.toggle-input:checked {
+  background: var(--color-primary);
+}
+
+.toggle-input::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: var(--transition);
+}
+
+.toggle-input:checked::before {
+  transform: translateX(24px);
+}
+
+.toggle-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toggle-text {
+  font-weight: 600;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.toggle-description {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
 }
 
 .grid {
