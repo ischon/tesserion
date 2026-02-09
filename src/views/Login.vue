@@ -5,8 +5,8 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
-const handleLogin = async () => {
-  await authStore.login()
+const handleLogin = async (provider = 'google') => {
+  await authStore.login(provider)
   if (authStore.isAuthenticated) {
     router.push({ name: 'dashboard' })
   }
@@ -25,9 +25,22 @@ const handleLogin = async () => {
       <div class="login-content">
         <p>Enter the ritual of consensus. Sync with your team and uncover the truth of the sprint.</p>
         
-        <button @click="handleLogin" class="btn-primary login-btn">
+        <button @click="handleLogin('google')" class="btn-primary login-btn">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="google-icon" />
           Sign in with Google
+        </button>
+
+        <button @click="handleLogin('microsoft')" class="btn-microsoft login-btn">
+          <div class="microsoft-icon-wrapper">
+            <svg class="microsoft-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23">
+              <path fill="#f3f3f3" d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v23H0zM12 12h11v11H12z"/>
+              <path fill="#f35325" d="M1 1h9v9H1z"/>
+              <path fill="#81bc06" d="M12 1h9v9h-9z"/>
+              <path fill="#05a6f0" d="M1 12h9v9H1z"/>
+              <path fill="#ffba08" d="M12 12h9v9h-9z"/>
+            </svg>
+          </div>
+          Sign in with Microsoft
         </button>
       </div>
       
@@ -107,6 +120,8 @@ const handleLogin = async () => {
   gap: 12px;
   width: 100%;
   font-size: 1.1rem;
+  padding: 14px 24px;
+  border-radius: 100px;
 }
 
 .google-icon {
@@ -115,6 +130,38 @@ const handleLogin = async () => {
   background: white;
   padding: 2px;
   border-radius: 50%;
+}
+
+.btn-microsoft {
+  margin-top: 16px;
+  background: linear-gradient(135deg, #0078d4, #00a4ef);
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 100px;
+  box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);
+}
+
+.btn-microsoft:hover {
+  background: linear-gradient(135deg, #1088e4, #10b4ff);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 120, 212, 0.5);
+}
+
+.microsoft-icon-wrapper {
+  width: 24px;
+  height: 24px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  padding: 4px;
+}
+
+.microsoft-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .footer {

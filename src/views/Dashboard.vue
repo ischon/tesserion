@@ -35,6 +35,16 @@ const maxValue = computed(() => {
   return sequentialMax.value
 })
 
+const userInitials = computed(() => {
+  if (!authStore.user?.displayName) return '?'
+  return authStore.user.displayName
+    .split(' ')
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+})
+
 const changeSequence = (type) => {
   sequenceType.value = type
   if (type === 'fibonacci') {
@@ -49,7 +59,7 @@ const changeSequence = (type) => {
 
 
 onMounted(() => {
-  if (authStore.userDomain) {
+  if (authStore.userDomain && !authStore.isPublicDomain) {
     const roomsRef = dbRef(rtdb, 'rooms')
     const q = query(roomsRef, orderByChild('domain'), equalTo(authStore.userDomain))
     
@@ -122,8 +132,8 @@ const createRoom = async () => {
   }
 }
 
-const handleLogout = () => {
-  authStore.logout()
+const handleLogout = async () => {
+  await authStore.logout()
   router.push({ name: 'login' })
 }
 </script>
@@ -132,7 +142,12 @@ const handleLogout = () => {
   <div class="dashboard container">
     <header class="dashboard-header">
       <div class="user-info">
-        <img :src="authStore.user?.photoURL" alt="Profile" class="avatar" />
+        <div v-if="authStore.photoURL" class="avatar-container">
+          <img :src="authStore.photoURL" alt="Profile" class="avatar" />
+        </div>
+        <div v-else class="avatar-fallback">
+          {{ userInitials }}
+        </div>
         <div>
           <h3>Welcome, {{ authStore.user?.displayName }}</h3>
           <p class="domain-tag">{{ authStore.userDomain }}</p>
@@ -212,7 +227,17 @@ const handleLogout = () => {
 
       <section class="rooms-list">
         <h2>Active Rituals in {{ authStore.userDomain }}</h2>
-        <div v-if="rooms.length === 0" class="empty-state">
+        
+        <div v-if="authStore.isPublicDomain" class="domain-warning glass">
+          <div class="warning-icon">🔒</div>
+          <div class="warning-content">
+            <h3>Domain Discovery Disabled</h3>
+            <p>You are logged in with a public email provider ({{ authStore.userDomain }}). For your privacy, room discovery is disabled for public domains.</p>
+            <p class="hint">Ask your teammate for a direct invite link to join their ritual.</p>
+          </div>
+        </div>
+
+        <div v-else-if="rooms.length === 0" class="empty-state">
           <p>No active rooms found. Start the first ritual.</p>
         </div>
         <div class="grid">
@@ -249,11 +274,30 @@ const handleLogout = () => {
   gap: 16px;
 }
 
-.avatar {
+.avatar, .avatar-fallback {
   width: 48px;
   height: 48px;
   border-radius: 50%;
   border: 2px solid var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar-fallback {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.05em;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .domain-tag {
@@ -434,6 +478,39 @@ input[type="range"]::-moz-range-thumb {
   font-size: 0.75rem;
   color: var(--color-text-muted);
   line-height: 1.4;
+}
+
+.domain-warning {
+  padding: 24px;
+  border-radius: 16px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-top: 24px;
+  border-left: 4px solid var(--color-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.warning-icon {
+  font-size: 2rem;
+}
+
+.warning-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+}
+
+.warning-content p {
+  margin: 0 0 8px 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.warning-content .hint {
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0;
 }
 
 .grid {
