@@ -75,3 +75,34 @@ Tesserion is optimized for Cloudflare Pages.
 ## 📄 License
 
 © 2025 [Ian Schön](https://github.com/ischon). All rights reserved.
+
+## 🔐 Microsoft Authentication Configuration
+ 
+### 1. Configure Microsoft Azure Portal
+Before modifying the code, you need to register the application with Microsoft.
+ 
+1. Go to the **[Azure Portal - App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)**.
+2. Click on **New Registration**.
+3. Give your app a name (e.g., *Tesserion*).
+4. For **Supported account types**, choose: *"Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts"* to allow both business and personal logins.
+5. Leave the **Redirect URI** empty for now and click **Register**.
+6. **Important**: Note down the **Application (client) ID**. You will need this for Firebase.
+ 
+### 2. Configure Firebase Console
+Now, link Microsoft to your Firebase project.
+ 
+1. Go to the **[Firebase Console](https://console.firebase.google.com/)**.
+2. Navigate to **Build > Authentication > Sign-in method**.
+3. Click on **Add new provider** and select **Microsoft**.
+4. Enable the provider.
+5. Enter the **Application (client) ID** you copied from Azure.
+6. In the Azure Portal, create a **Client Secret** (under **Certificates & secrets**), copy it, and paste it into Firebase.
+7. Firebase will provide a **Redirect URL** (e.g., `https://your-app.firebaseapp.com/__/auth/handler`). **Copy this URL!**
+ 
+### 3. Finalize Azure Authentication
+Return to the Azure Portal to complete the link:
+ 
+1. Go to your app registration > **Authentication**.
+2. Click on **Add a platform > Web**.
+3. Paste the **Redirect URL** you received from Firebase and click **Configure**.
+
